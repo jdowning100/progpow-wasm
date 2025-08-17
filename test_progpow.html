@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ProgPoW Block Verification</title>
+    <script src="wasm_exec.js"></script>
+    <style>
+        body { 
+            font-family: 'Courier New', monospace; 
+            padding: 20px; 
+            background: #f5f5f5;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section { 
+            margin: 20px 0; 
+            padding: 20px; 
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input, select { 
+            width: 100%;
+            max-width: 600px;
+            margin: 5px 0; 
+            padding: 8px; 
+            font-family: monospace; 
+            font-size: 13px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 10px 5px; 
+            cursor: pointer; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed;
+        }
+        .result { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            margin-top: 15px; 
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 12px; 
+            border: 1px solid #dee2e6; 
+            overflow-x: auto; 
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        label { 
+            display: inline-block; 
+            width: 200px; 
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        h1 { 
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 { 
+            color: #34495e;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .status-ready { 
+            background: #28a745;
+            animation: none;
+        }
+        .status-loading { background: #ffc107; }
+        .status-error { 
+            background: #dc3545;
+            animation: none;
+        }
+        .field-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .field-group h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .verification-result {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .verification-valid {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .verification-invalid {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .detail-value {
+            font-family: monospace;
+            color: #212529;
+            word-break: break-all;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab-button.active {
+            background: white;
+            border-bottom: 2px solid #4CAF50;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ ProgPoW Block Verification System</h1>
+    
+    <div class="section">
+        <h2>Module Status</h2>
+        <div id="status"><span class="status-indicator status-loading"></span>Loading WASM module...</div>
+        <div id="moduleInfo" style="margin-top: 10px; display: none;">
+            <div class="detail-row">
+                <span class="detail-label">Version:</span>
+                <span class="detail-value" id="moduleVersion">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Functions Available:</span>
+                <span class="detail-value" id="moduleFunctions">-</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Block Verification</h2>
+        
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('fetch')">Fetch from Chain</button>
+            <button class="tab-button" onclick="switchTab('manual')">Manual Input</button>
+        </div>
+
+        <div id="fetchTab" class="tab-content active">
+            <div class="field-group">
+                <h3>🌐 Fetch Block from Chain</h3>
+                <label>RPC Endpoint:</label>
+                <select id="rpcEndpoint">
+                    <option value="https://rpc.quai.network/cyprus1">Cyprus-1 (Default)</option>
+                    <option value="https://rpc.quai.network/cyprus2">Cyprus-2</option>
+                    <option value="https://rpc.quai.network/cyprus3">Cyprus-3</option>
+                    <option value="custom">Custom...</option>
+                </select>
+                <input type="text" id="customRpc" placeholder="Enter custom RPC URL" style="display: none; margin-top: 10px;">
+                
+                <br><br>
+                <label>Block Number:</label>
+                <input type="text" id="fetchBlockNumber" placeholder="Enter block number (e.g., 1000) or leave empty for latest">
+                
+                <br><br>
+                <button onclick="fetchAndVerifyBlock()">🔍 Fetch & Verify Block</button>
+            </div>
+        </div>
+
+        <div id="manualTab" class="tab-content">
+            <div class="field-group">
+                <h3>📝 Manual Block Data</h3>
+                <label>Header Hash:</label>
+                <input type="text" id="manualHeaderHash" placeholder="0x... (32 bytes hex)">
+                
+                <label>Parent Hash:</label>
+                <input type="text" id="manualParentHash" placeholder="0x... (32 bytes hex)">
+                
+                <label>Number:</label>
+                <input type="text" id="manualNumber" placeholder="0x... (hex) or decimal">
+                
+                <label>Difficulty:</label>
+                <input type="text" id="manualDifficulty" placeholder="0x... (hex) or decimal">
+                
+                <label>Mix Hash:</label>
+                <input type="text" id="manualMixHash" placeholder="0x... (32 bytes hex)">
+                
+                <label>Nonce:</label>
+                <input type="text" id="manualNonce" placeholder="0x... (hex)">
+                
+                <label>Prime Terminus:</label>
+                <input type="text" id="manualPrimeTerminus" placeholder="0x... (hex) or decimal">
+                
+                <label>Tx Hash:</label>
+                <input type="text" id="manualTxHash" placeholder="0x... (32 bytes hex)">
+                
+                <label>Location:</label>
+                <input type="text" id="manualLocation" placeholder="0x... (hex) or [0,0]" value="0x0000">
+                
+                <label>Lock:</label>
+                <input type="text" id="manualLock" placeholder="decimal" value="0">
+                
+                <label>Primary Coinbase:</label>
+                <input type="text" id="manualCoinbase" placeholder="0x... (20 bytes hex)">
+                
+                <label>Time:</label>
+                <input type="text" id="manualTime" placeholder="0x... (hex) or decimal">
+                
+                <label>Data:</label>
+                <input type="text" id="manualData" placeholder="0x... (hex)" value="0x00">
+                
+                <br><br>
+                <button onclick="verifyManualBlock()">✅ Verify Block</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="resultsSection" style="display: none;">
+        <h2>Verification Results</h2>
+        <div id="verificationResult"></div>
+        <div id="detailedResults"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test Examples</h2>
+        <button onclick="loadExample(1000)">Load Block 1000</button>
+        <button onclick="loadExample(1001)">Load Block 1001</button>
+        <button onclick="loadExample('latest')">Load Latest Block</button>
+    </div>
+
+    <script>
+        const go = new Go();
+        let wasmReady = false;
+
+        // Initialize WASM
+        async function init() {
+            try {
+                const response = await fetch('progpow_full.wasm');
+                const buffer = await response.arrayBuffer();
+                const result = await WebAssembly.instantiate(buffer, go.importObject);
+                go.run(result.instance);
+                
+                // Wait a bit for initialization
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                if (window.progpowReady) {
+                    wasmReady = true;
+                    document.getElementById('status').innerHTML = 
+                        '<span class="status-indicator status-ready"></span><span class="success">WASM module loaded successfully</span>';
+                    
+                    // Show module info
+                    document.getElementById('moduleInfo').style.display = 'block';
+                    document.getElementById('moduleVersion').textContent = '1.0.0';
+                    
+                    const functions = [];
+                    if (window.computeProgPoW) functions.push('computeProgPoW');
+                    if (window.verifyProgPoW) functions.push('verifyProgPoW');
+                    if (window.computeWorkObjectSealHash) functions.push('computeWorkObjectSealHash');
+                    if (window.verifyWithExactSealHash) functions.push('verifyWithExactSealHash');
+                    
+                    document.getElementById('moduleFunctions').textContent = functions.join(', ');
+                } else {
+                    throw new Error('WASM module failed to initialize');
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    '<span class="status-indicator status-error"></span><span class="error">Failed to load WASM: ' + error.message + '</span>';
+                console.error('WASM initialization error:', error);
+            }
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            // Update buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Handle RPC endpoint selection
+        document.getElementById('rpcEndpoint').addEventListener('change', function() {
+            const customInput = document.getElementById('customRpc');
+            if (this.value === 'custom') {
+                customInput.style.display = 'block';
+            } else {
+                customInput.style.display = 'none';
+            }
+        });
+
+        // Fetch and verify block from chain
+        async function fetchAndVerifyBlock() {
+            if (!wasmReady) {
+                alert('WASM module not ready yet');
+                return;
+            }
+
+            const rpcSelect = document.getElementById('rpcEndpoint');
+            let rpcUrl = rpcSelect.value;
+            if (rpcUrl === 'custom') {
+                rpcUrl = document.getElementById('customRpc').value;
+                if (!rpcUrl) {
+                    alert('Please enter a custom RPC URL');
+                    return;
+                }
+            }
+
+            const blockNumberInput = document.getElementById('fetchBlockNumber').value;
+            const blockParam = blockNumberInput ? 
+                '0x' + parseInt(blockNumberInput).toString(16) : 
+                'latest';
+
+            try {
+                showResult('info', 'Fetching block from ' + rpcUrl + '...');
+                
+                const response = await fetch(rpcUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'quai_getBlockByNumber',
+                        params: [blockParam, false],
+                        id: 1
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error('RPC Error: ' + data.error.message);
+                }
+
+                const block = data.result;
+                const woHeader = block.woHeader || block.workObjectHeader || block;
+                
+                // Prepare header data for verification
+                const headerData = {
+                    headerHash: woHeader.headerHash || '0x0',
+                    parentHash: woHeader.parentHash || '0x0',
+                    number: woHeader.number || '0x0',
+                    difficulty: woHeader.difficulty || '0x0',
+                    txHash: woHeader.txHash || '0x0',
+                    primeTerminusNumber: woHeader.primeTerminusNumber || '0x0',
+                    location: woHeader.location || '0x0000',
+                    lock: parseInt(woHeader.lock || '0x0', 16),
+                    primaryCoinbase: woHeader.primaryCoinbase || woHeader.coinbase || '0x0',
+                    time: woHeader.time || woHeader.timestamp || '0x0',
+                    data: woHeader.data || '0x00',
+                    mixHash: woHeader.mixHash || '0x0',
+                    nonce: woHeader.nonce || '0x0'
+                };
+
+                verifyBlock(headerData, parseInt(woHeader.number, 16));
+                
+            } catch (error) {
+                showResult('error', 'Failed to fetch block: ' + error.message);
+            }
+        }
+
+        // Verify manually entered block
+        function verifyManualBlock() {
+            if (!wasmReady) {
+                alert('WASM module not ready yet');
+                return;
+            }
+
+            const headerData = {
+                headerHash: document.getElementById('manualHeaderHash').value,
+                parentHash: document.getElementById('manualParentHash').value,
+                number: document.getElementById('manualNumber').value,
+                difficulty: document.getElementById('manualDifficulty').value,
+                txHash: document.getElementById('manualTxHash').value,
+                primeTerminusNumber: document.getElementById('manualPrimeTerminus').value,
+                location: document.getElementById('manualLocation').value,
+                lock: parseInt(document.getElementById('manualLock').value || '0'),
+                primaryCoinbase: document.getElementById('manualCoinbase').value,
+                time: document.getElementById('manualTime').value,
+                data: document.getElementById('manualData').value,
+                mixHash: document.getElementById('manualMixHash').value,
+                nonce: document.getElementById('manualNonce').value
+            };
+
+            const blockNumber = headerData.number.startsWith('0x') ? 
+                parseInt(headerData.number, 16) : 
+                parseInt(headerData.number);
+            
+            verifyBlock(headerData, blockNumber);
+        }
+
+        // Main verification function
+        function verifyBlock(headerData, blockNumber) {
+            try {
+                // First compute seal hash
+                console.log('Computing seal hash...');
+                const sealHashResult = window.computeWorkObjectSealHash(headerData);
+                
+                if (sealHashResult.error) {
+                    throw new Error('Seal hash error: ' + sealHashResult.error);
+                }
+
+                // Then verify with exact seal hash
+                console.log('Verifying block...');
+                const result = window.verifyWithExactSealHash(headerData);
+                
+                if (result.error) {
+                    throw new Error('Verification error: ' + result.error);
+                }
+
+                // Display results
+                displayResults(headerData, blockNumber, sealHashResult, result);
+                
+            } catch (error) {
+                showResult('error', 'Verification failed: ' + error.message);
+            }
+        }
+
+        // Display verification results
+        function displayResults(headerData, blockNumber, sealHashResult, verifyResult) {
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+
+            // Main result
+            const verificationDiv = document.getElementById('verificationResult');
+            if (verifyResult.valid) {
+                verificationDiv.className = 'verification-result verification-valid';
+                verificationDiv.innerHTML = `
+                    <h2>✅ Block #${blockNumber} is VALID</h2>
+                    <p>The block's ProgPoW proof-of-work is valid and meets the difficulty requirement.</p>
+                `;
+            } else {
+                verificationDiv.className = 'verification-result verification-invalid';
+                verificationDiv.innerHTML = `
+                    <h2>❌ Block #${blockNumber} is INVALID</h2>
+                    <p>The block's ProgPoW proof-of-work does not meet requirements.</p>
+                `;
+            }
+
+            // Detailed results
+            const detailsHtml = `
+                <div class="field-group">
+                    <h3>📊 Block Details</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Block Number:</span>
+                        <span class="detail-value">${blockNumber}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Difficulty:</span>
+                        <span class="detail-value">${verifyResult.difficulty || headerData.difficulty}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Nonce:</span>
+                        <span class="detail-value">${headerData.nonce}</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <h3>🔐 Seal Hash Computation</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Computed Seal Hash:</span>
+                        <span class="detail-value">0x${sealHashResult.sealHash}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Protobuf Size:</span>
+                        <span class="detail-value">${sealHashResult.protoSize} bytes</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <h3>⚡ ProgPoW Verification</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Mix Hash Valid:</span>
+                        <span class="detail-value ${verifyResult.mixHashValid ? 'success' : 'error'}">
+                            ${verifyResult.mixHashValid ? '✓ Valid' : '✗ Invalid'}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Expected Mix Hash:</span>
+                        <span class="detail-value">${verifyResult.expectedMixHash || headerData.mixHash}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Computed Mix Hash:</span>
+                        <span class="detail-value">${verifyResult.computedMixHash || verifyResult.mixHash}</span>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <h3>🎯 Difficulty Target</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">PoW Valid:</span>
+                        <span class="detail-value ${verifyResult.powValid ? 'success' : 'error'}">
+                            ${verifyResult.powValid ? '✓ Meets Target' : '✗ Does Not Meet Target'}
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">PoW Hash:</span>
+                        <span class="detail-value">${verifyResult.powHash}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Target:</span>
+                        <span class="detail-value">${verifyResult.target}</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detailedResults').innerHTML = detailsHtml;
+        }
+
+        // Load example block
+        async function loadExample(blockNumber) {
+            document.getElementById('fetchBlockNumber').value = blockNumber === 'latest' ? '' : blockNumber;
+            await fetchAndVerifyBlock();
+        }
+
+        // Show result message
+        function showResult(type, message) {
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.style.display = 'block';
+            
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            document.getElementById('verificationResult').innerHTML = 
+                `<div class="${className}">${message}</div>`;
+            document.getElementById('detailedResults').innerHTML = '';
+        }
+
+        // Initialize on page load
+        init();
+    </script>
+</body>
+</html>

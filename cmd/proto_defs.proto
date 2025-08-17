@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package wasm;
+
+option go_package = "./;main";
+
+// Local definitions matching go-quai proto structures
+message ProtoHash { 
+    bytes value = 1; 
+}
+
+message ProtoAddress { 
+    bytes value = 1; 
+}
+
+message ProtoLocation { 
+    bytes value = 1; 
+}
+
+// Matches ProtoWorkObjectHeader from go-quai
+message ProtoWorkObjectHeader {
+    optional ProtoHash header_hash = 1;
+    optional ProtoHash parent_hash = 2;
+    optional bytes number = 3;
+    optional bytes difficulty = 4;
+    optional ProtoHash tx_hash = 5;
+    optional uint64 nonce = 6;
+    optional ProtoLocation location = 7;
+    optional ProtoHash mix_hash = 8;
+    optional uint64 time = 9;
+    optional bytes prime_terminus_number = 10;
+    optional uint32 lock = 11;
+    optional ProtoAddress primary_coinbase = 12;
+    bytes data = 13;
+}

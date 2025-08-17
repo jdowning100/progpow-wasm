@@ -1,0 +1,17 @@
+# Compiled WASM output
+*.wasm
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Test outputs
+*.json
+!package.json
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store

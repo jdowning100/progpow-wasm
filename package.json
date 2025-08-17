@@ -1,0 +1,28 @@
+{
+  "name": "progpow-wasm-verifier",
+  "version": "1.0.0",
+  "description": "ProgPoW block verification using WASM",
+  "main": "verify_block.js",
+  "scripts": {
+    "verify": "node verify_block.js",
+    "verify:latest": "node verify_block.js",
+    "verify:block": "node verify_block.js 1000",
+    "verify:range": "node verify_block.js --range 1 10",
+    "serve": "./serve.sh",
+    "build:wasm": "cd cmd && GOOS=js GOARCH=wasm go build -o ../progpow_full.wasm main.go"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "quais": "1.0.0-alpha.52"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "progpow",
+    "wasm",
+    "blockchain",
+    "verification",
+    "quai"
+  ],
+  "author": "",
+  "license": "MIT"
+}
