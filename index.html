@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/progpow/">
+    <title>ProgPoW WASM Verifier - SPA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .status {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: left;
+        }
+        
+        .info h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .info p {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+        
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ ProgPoW Verifier</h1>
+        
+        <div id="status" class="status loading">
+            Loading WASM module...
+        </div>
+        
+        <div class="buttons">
+            <button id="verifyBtn" onclick="openVerifier()" disabled>
+                🔍 Open Verifier
+            </button>
+            <button id="docsBtn" onclick="showDocs()">
+                📚 Documentation
+            </button>
+            <button id="apiBtn" onclick="showAPI()">
+                🔌 API Reference
+            </button>
+        </div>
+        
+        <div id="info" class="info">
+            <h3>Welcome to ProgPoW WASM Verifier</h3>
+            <p>
+                This is a WebAssembly-based implementation of the ProgPoW (Programmatic Proof-of-Work) 
+                verification algorithm for the Quai Network.
+            </p>
+            <p>
+                <strong>Features:</strong><br>
+                • Browser-based block verification<br>
+                • No server-side computation required<br>
+                • Direct RPC integration<br>
+                • Full seal hash computation
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        // Simple SPA router
+        function route() {
+            const path = window.location.pathname;
+            
+            // If we're at /progpow without trailing slash, the base URL might be wrong
+            // Force correct base URL
+            if (path === '/progpow' && !window.location.pathname.endsWith('/')) {
+                // Let nginx handle the redirect
+                return;
+            }
+            
+            // Handle different routes
+            if (path === '/progpow' || path === '/progpow/') {
+                // Show landing page (current view)
+            } else if (path === '/progpow/verify') {
+                window.location.href = 'test_progpow.html';
+            } else if (path === '/progpow/docs') {
+                showDocs();
+            } else if (path === '/progpow/api') {
+                showAPI();
+            }
+        }
+        
+        // Check WASM availability
+        async function checkWASM() {
+            try {
+                const response = await fetch('progpow_full.wasm', { method: 'HEAD' });
+                if (response.ok) {
+                    document.getElementById('status').className = 'status ready';
+                    document.getElementById('status').textContent = '✅ WASM module ready';
+                    document.getElementById('verifyBtn').disabled = false;
+                } else {
+                    throw new Error('WASM file not found');
+                }
+            } catch (error) {
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ WASM module not available';
+            }
+        }
+        
+        function openVerifier() {
+            window.location.href = '/progpow/test_progpow.html';
+        }
+        
+        function showDocs() {
+            document.getElementById('info').innerHTML = `
+                <h3>📚 Documentation</h3>
+                <p><strong>Quick Start:</strong></p>
+                <p>1. Click "Open Verifier" to launch the verification interface</p>
+                <p>2. Enter a block number or fetch the latest block</p>
+                <p>3. The WASM module will verify the ProgPoW proof-of-work</p>
+                <br>
+                <p><strong>Technical Details:</strong></p>
+                <p>• Algorithm: ProgPoW with epoch length 388,800</p>
+                <p>• Hash functions: Keccak-256 (ProgPoW), Blake3 (seal hash)</p>
+                <p>• Verification: Light client mode using cache</p>
+                <br>
+                <p><strong>Endpoints:</strong></p>
+                <p><code>/progpow/</code> - This landing page</p>
+                <p><code>/progpow/test_progpow.html</code> - Verification interface</p>
+                <p><code>/progpow/verify_block.js</code> - CLI verifier</p>
+            `;
+        }
+        
+        function showAPI() {
+            document.getElementById('info').innerHTML = `
+                <h3>🔌 API Reference</h3>
+                <p><strong>JavaScript Functions:</strong></p>
+                <br>
+                <p><code>computeProgPoW(headerHash, nonce, blockNumber, primeTerminusNumber)</code></p>
+                <p>Computes the ProgPoW mix hash and pow hash</p>
+                <br>
+                <p><code>verifyProgPoW(headerHash, nonce, blockNumber, primeTerminusNumber, expectedMixHash, difficulty)</code></p>
+                <p>Verifies a ProgPoW solution</p>
+                <br>
+                <p><code>computeWorkObjectSealHash(headerData)</code></p>
+                <p>Computes seal hash using protobuf + Blake3</p>
+                <br>
+                <p><code>verifyWithExactSealHash(headerData)</code></p>
+                <p>Full verification with seal hash computation</p>
+                <br>
+                <p>See the README for detailed parameter descriptions.</p>
+            `;
+        }
+        
+        // Initialize
+        checkWASM();
+        route();
+        
+        // Handle browser back/forward
+        window.addEventListener('popstate', route);
+    </script>
+</body>
+</html>
